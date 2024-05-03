@@ -1,0 +1,205 @@
+<!-- V2.0 Modify appearance -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Gallery</title>
+    <style>
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            grid-gap: 0.7rem;
+            border: 1px solid #ccc; /* Add a border */
+            padding: 10px; /* Add some padding */
+            background-color: black;
+        }
+
+        .thumbnail {
+            width: 100%;
+            height: auto;
+            cursor: pointer;
+            border: 3px solid #90ffae; /* Add a green border */
+            /* padding: 5px; */
+        }
+
+        .fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            visibility: hidden;
+        }
+
+        .fullscreen img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        
+        .floating-menu {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 9999;
+        }
+
+        .empty-space{
+        height:20px; /* Same height as footer */
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-menu">
+        <h3>Grid View Settings</h3>
+        <button onclick="selectFolder()">Select Image Folder</button>
+        <div>
+            <label for="columnNumber">Column Number:</label>
+            <input type="number" id="columnNumber" min="1" value="6">
+        </div>
+        <div>
+            <label for="autoScroll">Auto Scroll:</label>
+            <input type="checkbox" id="autoScroll">
+        </div>
+        <div>
+            <label for="scrollInterval">Scroll Interval (ms):</label>
+            <input type="number" id="scrollInterval" min="1000" value="3000">
+        </div>
+    </div>
+
+    <div class="grid"></div>
+
+    <div class="empty-space"></div>
+
+    <div class="fullscreen">
+        <img src="" alt="Full Image">
+    </div>
+
+    <script>
+        const grid = document.querySelector('.grid');
+        const fullscreen = document.querySelector('.fullscreen');
+        const fullImg = document.querySelector('.fullscreen img');
+        const columnNumberInput = document.getElementById('columnNumber');
+        const autoScrollInput = document.getElementById('autoScroll');
+        const scrollIntervalInput = document.getElementById('scrollInterval');
+        let images = [];
+
+        // Function to select image folder
+        function selectFolder() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.webkitdirectory = true;
+            input.directory = true;
+            input.addEventListener('change', loadImages);
+            input.click();
+        }
+
+        // Function to load images from selected folder
+        function loadImages(event) {
+            const folderPath = event.target.files[0].webkitRelativePath.split('/')[0];
+            const fileNames = event.target.files;
+            images = Array.from(fileNames).map(file => URL.createObjectURL(file));
+            generateGrid();
+        }
+
+        // Function to generate grid view
+        function generateGrid() {
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${Math.floor(100 / columnNumberInput.value)}%, 1fr))`;
+
+            images.forEach(image => {
+                const thumbnail = document.createElement('img');
+                thumbnail.src = image;
+                thumbnail.classList.add('thumbnail');
+                thumbnail.addEventListener('click', () => showImage(image));
+                grid.appendChild(thumbnail);
+            });
+        }
+
+        // Function to display image in full window view
+        function showImage(image) {
+            fullImg.src = image;
+            fullscreen.style.visibility = 'visible';
+            document.addEventListener('keydown', handleKeyPress); // Add event listener for keyboard navigation
+            fullImg.addEventListener('click', closeImage);
+        }
+
+        // Function to close full window view
+        function closeImage(event) {
+            if (event.type === 'keydown' && event.key !== 'Escape') return;
+            fullscreen.style.visibility = 'hidden';
+            document.removeEventListener('keydown', closeImage);
+            document.removeEventListener('wheel', closeImage);
+        }
+
+        // Function to handle keyboard key press
+        function handleKeyPress(event) {
+            if (event.key === 'ArrowLeft' || event.key === 'a') {
+                showPreviousImage();
+            } else if (event.key === 'ArrowRight' || event.key === 'd') {
+                showNextImage();
+            } else if (event.key === 'Escape') {
+                closeImage(event);
+            }
+        }
+
+        // Event listener for wheel scroll on the fullscreen element
+        fullscreen.addEventListener('wheel', (event) => {
+            event.preventDefault();
+            const deltaY = event.deltaY;
+            if (deltaY < 0) {
+                showPreviousImage();
+            } else {
+                showNextImage();
+            }
+        });
+
+        // Function to show the previous image
+        function showPreviousImage() {
+            const currentImageIndex = images.findIndex(image => image === fullImg.src);
+            const previousImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+            fullImg.src = images[previousImageIndex];
+        }
+
+        // Function to show the next image
+        function showNextImage() {
+            const currentImageIndex = images.findIndex(image => image === fullImg.src);
+            const nextImageIndex = (currentImageIndex + 1) % images.length;
+            fullImg.src = images[nextImageIndex];
+        }
+
+        // Event listener for column number change
+        columnNumberInput.addEventListener('change', generateGrid);
+
+        // Event listener for auto scroll change
+        autoScrollInput.addEventListener('change', toggleAutoScroll);
+
+        // Function to toggle auto scroll functionality
+        let autoScrollInterval;
+        function toggleAutoScroll() {
+            if (autoScrollInput.checked) {
+                const scrollInterval = parseInt(scrollIntervalInput.value);
+                autoScrollInterval = setInterval(scrollToNextImage, scrollInterval);
+            } else {
+                clearInterval(autoScrollInterval);
+            }
+        }
+
+        // Function to scroll to the next image in full window view
+        function scrollToNextImage() {
+            const currentImageIndex = images.findIndex(image => image === fullImg.src);
+            const nextImageIndex = (currentImageIndex + 1) % images.length;
+            fullImg.src = images[nextImageIndex];
+        }
+    </script>
+</body>
+</html>
